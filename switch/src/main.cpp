@@ -22,6 +22,7 @@ bool relayState = false;
 
 void handleRoot() {
   server.send(200, "text/html", rootHtml);
+  Serial.println("root served");
 }
 
 void handleToggle() {
@@ -67,16 +68,21 @@ void handleTimer() {
   if (server.hasArg("miliseconds")) {
     int miliseconds = server.arg("miliseconds").toInt();
     if (miliseconds > 0) {
-      relayState = true;
-      digitalWrite(RELAY_PIN, HIGH);
-      #ifdef USE_LED
-        digitalWrite(LED_PIN, LOW);
-      #endif
-      timerStart = millis();
-      timerDuration = miliseconds;
-      timerActive = true;
-      server.send(200, "text/plain", "Timer started for " + String(miliseconds) + " miliseconds");
-      Serial.println("Timer " + String(miliseconds));
+      if (!relayState) {
+        relayState = true;
+        digitalWrite(RELAY_PIN, HIGH);
+        #ifdef USE_LED
+          digitalWrite(LED_PIN, LOW);
+        #endif
+        timerStart = millis();
+        timerDuration = miliseconds;
+        timerActive = true;
+        server.send(200, "text/plain", "Timer started for " + String(miliseconds) + " miliseconds");
+        Serial.println("Timer " + String(miliseconds));
+      } else {
+        server.send(200, "text/plain", "Already ON");
+        Serial.println("Timer " + String(miliseconds) + " ignored because already ON");
+      }
     } else {
       server.send(400, "text/plain", "Invalid duration");
     }
