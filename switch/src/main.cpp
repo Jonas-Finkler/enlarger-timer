@@ -25,6 +25,11 @@ void handleRoot() {
   Serial.println("root served");
 }
 
+void handeState() {
+  server.send(200, "text/plain", relayState ? "ON" : "OFF");
+  Serial.println("State");
+}
+
 void handleToggle() {
   relayState = !relayState;
   digitalWrite(RELAY_PIN, relayState ? HIGH : LOW);
@@ -109,6 +114,7 @@ void setup() {
   digitalWrite(LED_PIN, HIGH); // off by default
 
   server.on("/", handleRoot);
+  server.on("/state", handeState);
   server.on("/toggle", handleToggle);
   server.on("/on", handleOn);
   server.on("/off", handleOff);
