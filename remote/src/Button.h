@@ -6,10 +6,11 @@ private:
   int pin;
   void (*callback)(void);
   const int debounceDelay = 500;
-  volatile const unsigned long lastButtonPress = 0;
+  volatile unsigned long lastButtonPress = 0;
 
   void buttonPressed(){
     if (millis() - lastButtonPress > debounceDelay){
+      lastButtonPress = millis();
       callback();
     }
   }
