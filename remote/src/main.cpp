@@ -34,11 +34,8 @@ const uint8_t SEG_CONN[] = {
 TM1637Display ledDisplay(LED_CLK, LED_DIO);
 
 
-// TODO: 
-// - the left button should start a 30s timer without turning on the lamp
-// - when held donw, the left button should allow to set the blind timer
 
- 
+// --- buttons --- 
 volatile bool leftButtonWasPressed = false;
 void leftButtonPressed() { leftButtonWasPressed = true; }
 Button leftButton(BUTTON_L_PIN, leftButtonPressed);
@@ -51,36 +48,39 @@ volatile bool buttonWasPressed = false;
 void buttonPressed() { buttonWasPressed = true; }
 Button button(BUTTON_R_PIN, buttonPressed);
 
+// --- encoder ---
 Encoder encoder(ENCODER_DT_PIN, ENCODER_CLK_PIN);
 unsigned long lastEncoderChange = 0;
 int lastEncoderValue = 0;
 int encoderRefValue = 0;
 int encoderAccum = 0;
 
-int setTime = 0;
+// --- timer ---
+unsigned long timerDoneTime = 0;
+unsigned long silentTimerDoneTime = 0;
 
-unsigned long timerStart = 0;
-bool timerRunning = false;
-int timerDuration = 0;
+// --- ui ---
+int setTime = 0; // displayed time
+bool fastMode = true; // 5x speed for encoder time setting
 
+// --- wifi switch ---
 unsigned long lastSwitchChange = 0;
 bool switchState = false;
 
-bool onMode = false;
-bool fastMode = false;
 
+
+long timerRemaining(unsigned long timerDoneTime) {
+  return timerDoneTime - millis();
+}
 
 void updateEncoder() {
-  if (onMode) { // ignore all changes (delta has been set to zero)
-    encoderRefValue = encoder.read();
-    return;
-  }
   int encoderValue = encoder.read();
-  if (encoderValue != lastEncoderValue) {
+
+  if (encoderValue != lastEncoderValue) { 
     lastEncoderChange = millis();
     lastEncoderValue = encoderValue;
   }
-  /*encoderRefValue = min(encoderValue, encoderRefValue);*/
+
   int encoderDelta = encoderValue - encoderRefValue;
   int setTimeDelta = (encoderDelta + 2 + 40) / 4 - 10; // adding the 40 to always round down 
   if (fastMode) {
@@ -88,15 +88,18 @@ void updateEncoder() {
   }
   setTime = setTimeDelta + encoderAccum ; // in 1/10 s
 
-  // NOTE: implements: setTime = max(-1, setTime); but avoids hidden negative encoderDelta
+  // negative set time turns the switch on
+  // this avoids the set time going too low, limit is -1 or -5 in fast mode
   if (fastMode) {
-    encoderAccum = max(-1 * setTimeDelta - 5, encoderAccum);
+    if (setTime < 0) {
+      encoderAccum = (setTime + 1) % 5 - 1 - setTimeDelta;
+    }
   } else {
     encoderAccum = max(-1 * setTimeDelta - 1, encoderAccum);
   }
 
   // adjust reference, in case encoder gets out of alignment (4 per click)
-  if ((millis() - lastEncoderChange > 500) && !timerRunning && encoderDelta != 0) {
+  if ((millis() - lastEncoderChange > 500) && encoderDelta != 0) {
     encoderAccum = setTime;
     encoderRefValue = encoderValue;
   }
@@ -121,38 +124,40 @@ void loop() {
   
   updateEncoder();
 
+  long remainingTimerTime = timerRemaining(timerDoneTime);
+  long remainingSilentTimerTime = timerRemaining(silentTimerDoneTime);
+
+  // cancel silent timer if running, otherwise start or cancel normal timer
   if (buttonWasPressed) {
     buttonWasPressed = false;
-    if (timerRunning) { // cancel timer
-      timerRunning = false;
-      setState(false);
+
+    if (remainingSilentTimerTime > 0) { // cancel silent timer
+      silentTimerDoneTime = millis() - 1;
     } else {
-      if (setTime > 0 && !onMode) {
-        timerDuration = setTime * 100;
-        setTimer(timerDuration);
-        timerStart = millis();
-        timerRunning = true;
+      if (remainingTimerTime > 0) { // cancel timer
+        timerDoneTime = millis() - 1;
+        setState(false);
+      } else {
+        if (setTime > 0) { // start timer
+          int timerDuration = setTime * 100;
+          setTimer(timerDuration);
+          timerDoneTime = millis() + timerDuration;
+        }
       }
     }
   }
 
+  // add 30s to silent timer
   if (leftButtonWasPressed) {
     leftButtonWasPressed = false;
-    if (!timerRunning) {
-      if (setTime < 0) { // reset to 0, turn off
-        encoderAccum = 0;
-        encoderRefValue = encoder.read();
-        onMode = false;
-      } else {
-        if (!onMode) { // freeze setTime
-          encoderAccum = setTime;
-          encoderRefValue = encoder.read();
-        }
-        onMode = !onMode;
-      }
-    } 
+
+    if (remainingSilentTimerTime < 0) {
+      silentTimerDoneTime = millis();
+    }
+    silentTimerDoneTime += 30 * 1000;
   }
 
+  // toggle fast mode
   if (encoderButtonWasPressed) {
     encoderButtonWasPressed = false;
     fastMode = !fastMode;
@@ -160,10 +165,10 @@ void loop() {
     encoderRefValue = encoder.read();
   }
 
-  bool shouldBeOn = setTime < 0 || onMode;
+  bool shouldBeOn = setTime < 0;
   // update switch state if necessary
   if (shouldBeOn != switchState) {
-    if (millis() - lastSwitchChange > 500) {
+    if (millis() - lastSwitchChange > 100) {
       switchState = shouldBeOn;
       setState(switchState);
       lastSwitchChange = millis();
@@ -171,26 +176,21 @@ void loop() {
   }
 
   // display stuff
-  if (timerRunning) {
-    int timeLeft = timerDuration - (millis() - timerStart);
-    if (timeLeft <= 0) {
-      timerRunning = false;
-      timerDuration = 0;
-      timerStart = 0;
-    }
-    /*Serial.println("Time left: " + String(timeLeft / 1000.f));*/
-    ledDisplay.showNumberDecEx(timeLeft / 100, 0b00100000, true);
+  if (remainingSilentTimerTime > 0) { 
+      /*Serial.println("Silent time left: " + String(remainingSilentTimerTime / 1000.f));*/
+    ledDisplay.showNumberDecEx(remainingSilentTimerTime / 100, 0b00100000, true);
   } else {
-    if (shouldBeOn) {
-      /*Serial.println("Switch is on");*/
-      if (setTime < 0) { // indicate why it is on
-        ledDisplay.setSegments(SEG__ON_);
-      } else {
-        ledDisplay.setSegments(SEG_ON);
-      }
+    if (remainingTimerTime > 0) {
+      /*Serial.println("Time left: " + String(remainingTimerTime / 1000.f));*/
+      ledDisplay.showNumberDecEx(remainingTimerTime / 100, 0b00100000, true);
     } else {
-      /*Serial.println("Set time: " + String(setTime / 10.f) + " s");*/
-      ledDisplay.showNumberDecEx(setTime, 0b00100000, true);
+      if (shouldBeOn) {
+        /*Serial.println("Switch is on");*/
+        ledDisplay.setSegments(SEG_ON);
+      } else {
+        /*Serial.println("Set time: " + String(setTime / 10.f) + " s");*/
+        ledDisplay.showNumberDecEx(setTime, 0b00100000, true);
+      }
     }
   }
 

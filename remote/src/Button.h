@@ -5,7 +5,7 @@ class Button{
 private:
   int pin;
   void (*callback)(void);
-  const int debounceDelay = 500;
+  const long debounceDelay = 500;
   volatile unsigned long lastButtonPress = 0;
 
   void buttonPressed(){
