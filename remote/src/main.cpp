@@ -112,6 +112,17 @@ void setup() {
   ledDisplay.setBrightness(0, true);
 }
 
+// time is in ms
+void displayTime(int time) { 
+  if (time >= 1000) {
+    ledDisplay.showNumberDecEx(time / 100, 0b00100000, false);
+  } else {
+    ledDisplay.showNumberDecEx(0, 0b00100000, false, 3, 0); // __0.
+    ledDisplay.showNumberDecEx(time / 100, 0b000000, true, 1, 3); // x
+  }
+}
+
+
 void loop() {
   /*unsigned long loopStart = millis();*/
   if (WiFi.status() != WL_CONNECTED) {
@@ -178,18 +189,18 @@ void loop() {
   // display stuff
   if (remainingSilentTimerTime > 0) { 
       /*Serial.println("Silent time left: " + String(remainingSilentTimerTime / 1000.f));*/
-    ledDisplay.showNumberDecEx(remainingSilentTimerTime / 100, 0b00100000, true);
+    displayTime(remainingSilentTimerTime);
   } else {
     if (remainingTimerTime > 0) {
       /*Serial.println("Time left: " + String(remainingTimerTime / 1000.f));*/
-      ledDisplay.showNumberDecEx(remainingTimerTime / 100, 0b00100000, true);
+      displayTime(remainingTimerTime);
     } else {
       if (shouldBeOn) {
         /*Serial.println("Switch is on");*/
         ledDisplay.setSegments(SEG_ON);
       } else {
         /*Serial.println("Set time: " + String(setTime / 10.f) + " s");*/
-        ledDisplay.showNumberDecEx(setTime, 0b00100000, true);
+        displayTime(setTime * 100);
       }
     }
   }
