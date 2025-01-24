@@ -105,13 +105,6 @@ void updateEncoder() {
   }
 }
 
-void setup() {
-  Serial.begin(115200);
-  encoderRefValue = encoder.read();
-  lastEncoderValue = encoderRefValue;
-  ledDisplay.setBrightness(0, true);
-}
-
 // time is in ms
 void displayTime(int time) { 
   if (time >= 1000) {
@@ -122,6 +115,12 @@ void displayTime(int time) {
   }
 }
 
+void setup() {
+  Serial.begin(115200);
+  encoderRefValue = encoder.read();
+  lastEncoderValue = encoderRefValue;
+  ledDisplay.setBrightness(0, true);
+}
 
 void loop() {
   /*unsigned long loopStart = millis();*/
