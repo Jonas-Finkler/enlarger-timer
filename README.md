@@ -24,5 +24,6 @@ Both timer modes, with or without enlarger can be cancelled by pressing the righ
 
 The electronics are housed in a case made out of laser cut 3 millimeter thick MDF. 
 The case was designed using Inkscape and is fully assembled using friction fits, such that no glue is required. 
+
 ![cutting outlines for the case](images/case-cut.svg)
 
