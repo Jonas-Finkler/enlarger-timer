@@ -1,17 +1,19 @@
 # Enlarger Timer
-This is a timer for a darkroom enlarger to accurately control exposure time of analog prints.
+This is a timer for an [enlarger](https://en.wikipedia.org/wiki/Enlarger) to accurately control exposure time of analog prints.
 
 The timer consists of two parts: a _switch_ and a _remote_.
 
 ## Switch
-The switch is reprogrammed Sonoff BASICR2. 
+The switch is reprogrammed Sonoff BASICR2 that controls the enlarger by switching its main power. 
+
 It hosts a Wi-Fi network and an HTTP server that provides a simple API to turn the enlarger on, off, turn it on for a specific number of milliseconds or to simply request the current state. 
 It also provides a small website through which all features can be accessed for debugging purposes. 
 
 ## Remote
 ![photo of the assembled remote](images/remote.jpg)
 
-The remote is powered by an esp8266 and features two buttons, a red four digit seven-segment LED display and a rotary encoder. 
+The remote is powered by an ESP8266 (D1 Mini) that connects to the Wi-Fi network of the switch.
+It features two buttons, a red four digit seven-segment LED display and a rotary encoder. 
 The encoder can be used to set the time in 0.5 second steps or 0.1 second steps after pressing the integrated button. 
 By turning the encoder below zero, the enlarger is turned permanently, so the print can be prepared. 
 
